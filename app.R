@@ -1,3 +1,9 @@
+# STA141B Project - Alvis Ip
+# App Description: This app pulls resources from the Alpha Vantage API (https://www.alphavantage.co/) and 
+# generates stock graphs with simple analyses upon request. Users are able to fetch daily, weekly, or monthly charts,
+# and can review supplemental analysis on the company.
+
+##LOAD PACKAGES
 library(tidyverse)
 library(jsonlite)
 library(lubridate)
@@ -8,8 +14,9 @@ library(fpp2)
 library(shiny)
 library(shinyWidgets)
 
-# Define UI for application that draws a histogram
+#UI GENERATION
 ui <- fluidPage(
+  #CSS tags for background/layout setup
   tags$style(type="text/css",
              ".shiny-output-error { visibility: hidden; }",
              ".shiny-output-error:before { visibility: hidden; }"
@@ -34,7 +41,7 @@ ui <- fluidPage(
      )),
    tags$p(tags$br()),
    tags$hr(),
-   # Sidebar
+   # Sidebar Panel
    sidebarLayout(
       sidebarPanel(
         textInput(inputId = "ticker",
@@ -55,13 +62,14 @@ ui <- fluidPage(
                                     "Volume/Liquidity" = "vol"
                                     ))
       ),
-      # Show a plot of the generated distribution
+      # Show a plot of the generated distribution and potential errors
       mainPanel(
         textOutput("overcall"),
         plotOutput(outputId = "disPlot")
       )
    ),
   tags$hr(),
+  # Summary and Analysis Panels
   tags$h1("Summary and Analysis", style = "font-family:Lucida Console"),
   wellPanel(
     fluidRow(
@@ -85,7 +93,7 @@ ui <- fluidPage(
   )
 )
 
-# Define server logic
+#SERVER GENERATION
 server <- function(input, output) {
 #BUILD GRAPH
   #Fetch data dependent on inputs, import it as table
@@ -109,8 +117,6 @@ server <- function(input, output) {
       )
     )}
   )
-  
-  
   json <- eventReactive(input$go, content(r(), as = "text", encoding = "UTF-8"))
   values <- eventReactive(input$go, fromJSON(json(), flatten = TRUE))
   
@@ -157,7 +163,7 @@ server <- function(input, output) {
       ts(start = decimal_date(ymd(dates_prices()$dates[1])), freq = freq_val)
     })
   
-#BUILD SMA
+#BUILD SMA - Uses the same code as above chunk, but for SMA GET request this time.
   sma <- eventReactive(input$go,{
     sma_interval <- NULL
     freq_val = NULL
@@ -223,7 +229,7 @@ server <- function(input, output) {
       ts(start = decimal_date(ymd(dates_prices_sma()$dates[1])), freq = freq_val_sma)
   })
 
-#BUILD EMA
+#BUILD EMA - Same as SMA, but for EMA GET request.
   ema <- eventReactive(input$go,{
     ema_interval <- NULL
     freq_val = NULL
@@ -289,7 +295,7 @@ server <- function(input, output) {
       ts(start = decimal_date(ymd(dates_prices_ema()$dates[1])), freq = freq_val_ema)
   })
   
-#Display plots
+#Display plots and corresponding aesthetics
   output$disPlot <- renderPlot({
     autoplot(dates.ts(), series = isolate(input$ticker)) + 
       autolayer(dates.ts_sma(), series = "10 Interval SMA") +
@@ -298,7 +304,8 @@ server <- function(input, output) {
   })
 
   
-#ANALYSIS#
+##ANALYSIS
+  #Fetch data for only this week. Same as first code chunk, but is not reactive to frequency input.
   weekly_data <- eventReactive(input$go,{
     GET(
       "https://www.alphavantage.co/query?function={}&symbol={}&apikey={}",
@@ -359,7 +366,7 @@ server <- function(input, output) {
       "High Volatility"}
   })
   
-#For TA
+#For Technical Analysis - another SMA GET function static to just the daily charts
   sma_w <- eventReactive(input$go,{
     GET(
       "https://www.alphavantage.co/query?",
@@ -436,7 +443,7 @@ server <- function(input, output) {
       "highly liquid"
     }
   })
-  
+#OUTPUTS FOR ANALYSIS
   output$week_perf <- renderText({
     if(input$analysis == "week") {
         paste0("<h4>", isolate(input$ticker)," had a low value this week of ", "<b>$", low_value(),"</b>", " on ", "<b>", date_low(), "</b>", ",",
@@ -518,7 +525,7 @@ server <- function(input, output) {
       }
     }
   })
-  
+#OUTPUTS FOR WEEKLY SUMMARY  
   output$data_title <- renderText({
     if(!is.null(display_table())){
       paste("<h3><b> Week-to-Date Performance of", isolate(input$ticker),"</b></h3>")
